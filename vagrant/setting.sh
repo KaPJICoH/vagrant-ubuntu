@@ -16,7 +16,12 @@ sudo apt-get -qq update > /dev/null 2>&1
 echo -e "\n--- Install MySQL(root/root) ---\n"
 echo "mysql-server mysql-server/root_password password $DBPASSWD" | debconf-set-selections
 echo "mysql-server mysql-server/root_password_again password $DBPASSWD" | debconf-set-selections
-sudo apt-get -y install mysql-server-5.5 > /dev/null 2>&1
+echo "phpmyadmin phpmyadmin/dbconfig-install boolean true" | debconf-set-selections
+echo "phpmyadmin phpmyadmin/app-password-confirm password $DBPASSWD" | debconf-set-selections
+echo "phpmyadmin phpmyadmin/mysql/admin-pass password $DBPASSWD" | debconf-set-selections
+echo "phpmyadmin phpmyadmin/mysql/app-pass password $DBPASSWD" | debconf-set-selections
+echo "phpmyadmin phpmyadmin/reconfigure-webserver multiselect none" | debconf-set-selections
+sudo apt-get -y install mysql-server-5.5 phpmyadmin > /dev/null 2>&1
 
 echo -e "\n--- Create DB(wordpress) ---\n"
 mysql -u$DBUSER -p$DBPASSWD -e "CREATE DATABASE $DBNAME"
@@ -24,6 +29,25 @@ mysql -u$DBUSER -p$DBPASSWD -e "grant all privileges on $DBNAME.* to '$DBUSER'@'
 
 echo -e "\n--- Installing PHP packages ---\n"
 sudo apt-get -y install php5 apache2 php5-curl php5-mysql > /dev/null 2>&1
+
+echo -e "\n--- Enabling mod-rewrite ---\n"
+a2enmod rewrite > /dev/null 2>&1
+
+echo -e "\n--- Allowingoverride to all ---\n"
+sed -i "s/AllowOverride None/AllowOverride All/g" /etc/apache2/apache2.conf
+
+echo -e "\n--- Configure phpmyadmin ---\n"
+echo -e "\n\nListen 81\n" >> /etc/apache2/ports.conf
+cat > /etc/apache2/conf-available/phpmyadmin.conf << "EOF"
+<VirtualHost *:81>
+    ServerAdmin webmaster@localhost
+    DocumentRoot /usr/share/phpmyadmin
+    DirectoryIndex index.php
+    ErrorLog ${APACHE_LOG_DIR}/phpmyadmin-error.log
+    CustomLog ${APACHE_LOG_DIR}/phpmyadmin-access.log combined
+</VirtualHost>
+EOF
+a2enconf phpmyadmin > /dev/null 2>&1
 
 echo -e "\n--- Add environment variables to Apache ---\n"
 cat > /etc/apache2/sites-enabled/000-default.conf <<EOF
