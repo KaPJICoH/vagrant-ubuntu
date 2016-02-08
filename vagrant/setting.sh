@@ -36,6 +36,19 @@ a2enmod rewrite > /dev/null 2>&1
 echo -e "\n--- Allowingoverride to all ---\n"
 sed -i "s/AllowOverride None/AllowOverride All/g" /etc/apache2/apache2.conf
 
+sudo touch wordpress.dev.conf
+cat>/etc/apache2/sites-available/wordpress.dev.conf <<EOF
+<VirtualHost *:80>
+	ServerName wordpress.dev
+	ServerAlias www.wordpress.dev
+    DocumentRoot /var/www/wordpress.dev
+    ErrorLog \${APACHE_LOG_DIR}/error.log
+    CustomLog \${APACHE_LOG_DIR}/access.log combined    
+</VirtualHost>
+EOF
+
+sudo a2ensite wordpress.dev.conf
+
 echo -e "\n--- Configure phpmyadmin ---\n"
 echo -e "\n\nListen 81\n" >> /etc/apache2/ports.conf
 cat > /etc/apache2/conf-available/phpmyadmin.conf << "EOF"
@@ -71,6 +84,7 @@ echo -e "\n--- Install wp-cli ---\n"
 curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar > /dev/null 2>&1
 chmod +x wp-cli.phar
 sudo mv wp-cli.phar /usr/local/bin/wp
+sudo mkdir wordpress.dev
 
 cd wordpress
 echo -e "\n--- Import DB ---\n"
